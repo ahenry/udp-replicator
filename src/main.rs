@@ -30,8 +30,8 @@ fn main() {
     loop {
         if let Ok((packet, addr)) = iter.next() {
             //println!("{:?}, {:?}", packet, addr);
-            if packet.get_destination() == "127.0.0.3".parse::<std::net::Ipv4Addr>().unwrap() { 
-                continue 
+            if packet.get_destination() == "127.0.0.3".parse::<std::net::Ipv4Addr>().unwrap() {
+                continue;
             }
 
             if let Some(udp_packet) = UdpPacket::new(packet.payload()) {
@@ -52,8 +52,10 @@ fn main() {
                 new_packet.set_destination(new_dest);
 
                 {
-                    let mut new_udp_packet = MutableUdpPacket::new(new_packet.payload_mut()).unwrap();
-                    let checksum = ipv4_checksum(&new_udp_packet.to_immutable(), old_source, new_dest);
+                    let mut new_udp_packet = MutableUdpPacket::new(new_packet.payload_mut())
+                        .unwrap();
+                    let checksum =
+                        ipv4_checksum(&new_udp_packet.to_immutable(), old_source, new_dest);
                     new_udp_packet.set_checksum(checksum);
                     //println!("{:?}", new_udp_packet);
                 }
