@@ -4,4 +4,4 @@ version = "0.1.0"
 authors = ["Austin Henry <ahenry-rust@twocanoe.ca>"]
 
 [dependencies]
-pnet = "0.20"
+pnet = "*"
