@@ -4,17 +4,31 @@ use pnet::packet::{MutablePacket, Packet};
 use pnet::packet::udp::{ipv4_checksum, UdpPacket, MutableUdpPacket};
 use pnet::packet::ipv4;
 use pnet::packet::ipv4::{Ipv4Packet, MutableIpv4Packet};
-use pnet::packet::ipv6;
-use pnet::packet::ipv6::{Ipv6Packet, MutableIpv6Packet};
+#[allow(unused_imports)] use pnet::packet::ipv6;
+#[allow(unused_imports)] use pnet::packet::ipv6::{Ipv6Packet, MutableIpv6Packet};
 use pnet::packet::ip::IpNextHeaderProtocols;
-use pnet::transport::{transport_channel, udp_packet_iter, ipv4_packet_iter};
-use pnet::transport::TransportProtocol::Ipv4;
-use pnet::transport::TransportChannelType::{Layer3, Layer4};
+use pnet::transport::{transport_channel, ipv4_packet_iter};
+use pnet::transport::TransportChannelType::{Layer3};
 
 use std::collections::HashMap;
-use std::iter::repeat;
+#[allow(unused_imports)] use std::net::{IpAddr, SocketAddr};
 use std::net::{Ipv4Addr, SocketAddrV4};
-use std::str;
+#[allow(unused_imports)] use std::net::{Ipv6Addr, SocketAddrV6};
+
+enum LoadBalancingStrategy {
+    Duplicate,
+    RoundRobin,
+}
+
+enum Destination {
+    Address(SocketAddr),
+    Group(LoadBalanceGroup)
+}
+
+struct LoadBalanceGroup {
+    strategy: LoadBalancingStrategy,
+    destinations: Vec<Destination>
+}
 
 fn v4_to_v4<'a>(packet: &'a [u8], destination: &SocketAddrV4, source: Option<&Ipv4Addr>) -> Option<MutableIpv4Packet<'a>> {
 
@@ -47,13 +61,13 @@ enum IpPacket<'p> {
 }
 
 // TODO: this needs to return multiple addresses, etc
-fn get_destinations<'a>(packet: &IpPacket, dest_map: &'a DestMap) -> Option<&'a Vec<SocketAddrV4>> {
-    let dest = match *packet {
+fn get_destinations<'a>(packet: IpPacket, dest_map: &'a DestMap) -> Option<&'a Vec<SocketAddrV4>> {
+    let dest = match packet {
         IpPacket::V4(ref p) => {
             let udp_packet = UdpPacket::new(p.payload())?;
             udp_packet.get_destination()
         }
-        IpPacket::V6(ref _p) =>  unimplemented!("haven't done v6 support yet")
+        IpPacket::V6(_) =>  unimplemented!("haven't done v6 support yet")
     };
 
     dest_map.get(&dest)
@@ -91,7 +105,7 @@ fn main() {
         if let Ok((packet, _addr)) = iter.next() {
 //            println!("{:?}, {:?}", packet, _addr);
             
-            let destinations = get_destinations(&IpPacket::V4(&packet), &dest_map);
+            let destinations = get_destinations(IpPacket::V4(&packet), &dest_map);
 //            println!("{:?}", destinations);
             // if we didn't find a destination, we don't handle this packet
             if let None = destinations {
@@ -102,7 +116,7 @@ fn main() {
 
             for dest in destinations {
                 let new_packet = v4_to_v4(packet.packet(), dest, None).unwrap();
-                tx.send_to(new_packet, std::net::IpAddr::V4(*dest.ip()));
+                tx.send_to(new_packet, std::net::IpAddr::V4(*dest.ip())).unwrap();
             }
         }
     }
