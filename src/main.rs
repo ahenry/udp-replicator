@@ -15,16 +15,21 @@ use std::collections::HashMap;
 use std::net::{Ipv4Addr, SocketAddrV4};
 #[allow(unused_imports)] use std::net::{Ipv6Addr, SocketAddrV6};
 
+#[derive(Clone, Debug)]
 enum LoadBalancingStrategy {
     Duplicate,
     RoundRobin,
+    WeightedRoundRobin,
 }
 
+// TODO need to add some way to store per-address configuration data beside an address
+#[derive(Clone, Debug)]
 enum Destination {
     Address(SocketAddr),
     Group(LoadBalanceGroup)
 }
 
+#[derive(Clone, Debug)]
 struct LoadBalanceGroup {
     strategy: LoadBalancingStrategy,
     destinations: Vec<Destination>
@@ -86,6 +91,27 @@ fn main() {
         (333, vec!["127.1.0.1:3333".parse().unwrap(), "127.1.100.88:3333".parse().unwrap()]),
         (33, vec!["127.1.1.1:444".parse().unwrap()]),
     ].iter().cloned().collect();
+
+    let new_config: HashMap<u16, LoadBalanceGroup> = [
+        (333, LoadBalanceGroup {
+                strategy: LoadBalancingStrategy::Duplicate,
+                destinations: vec![
+                    Destination::Address("127.1.0.1:3333".parse().unwrap()),
+                    Destination::Address("127.1.100.88:3333".parse().unwrap())
+                ] 
+            }
+        ),
+        (334, LoadBalanceGroup {
+                strategy: LoadBalancingStrategy::RoundRobin,
+                destinations: vec![
+                    Destination::Address("127.1.0.1:3333".parse().unwrap()),
+                    Destination::Address("127.1.100.88:3333".parse().unwrap())
+                ] 
+            }
+        ),
+    ].iter().cloned().collect();
+
+    println!("{:?}", new_config);
 
     // TODO: probably need to replicate this whole thing for ipv6 too
     let protocol = Layer3(IpNextHeaderProtocols::Udp);
