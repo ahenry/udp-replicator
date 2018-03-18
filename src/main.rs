@@ -62,6 +62,9 @@ struct RoundRobin {
     next_index: RefCell<usize>, // XXX tread-unsafety
 }
 
+// NOTE: storing the size in here is probably dumb, especially thinking about dynamic health checks
+// that might add or remove things from the pool.  It might be easier to just have the whole
+// LoadBalanceGroup.strategy field be mutable for callbacks to have their way with
 impl RoundRobin {
     fn new(count: usize) -> RoundRobin {
         RoundRobin {
