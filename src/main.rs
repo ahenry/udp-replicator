@@ -198,10 +198,46 @@ fn main() {
         (
             334,
             LoadBalanceGroup {
-                strategy: LoadBalancingStrategy::RoundRobin(RoundRobin::new(2)),
+                strategy: LoadBalancingStrategy::RoundRobin(RoundRobin::new(3)),
                 destinations: vec![
                     Destination::Address("127.1.0.1:3333".parse().unwrap()),
                     Destination::Address("127.1.100.88:3333".parse().unwrap()),
+                    Destination::Group(LoadBalanceGroup {
+                        strategy: LoadBalancingStrategy::RoundRobin(RoundRobin::new(2)),
+                        destinations: vec![
+                            Destination::Address("127.1.20.1:2222".parse().unwrap()),
+                            Destination::Address("127.1.20.2:2222".parse().unwrap()),
+                        ],
+                    }),
+                ],
+            },
+        ),
+        (
+            335,
+            LoadBalanceGroup {
+                strategy: LoadBalancingStrategy::Duplicate(Duplicate::new()),
+                destinations: vec![
+                    Destination::Group(LoadBalanceGroup {
+                        strategy: LoadBalancingStrategy::RoundRobin(RoundRobin::new(2)),
+                        destinations: vec![
+                            Destination::Address("127.1.1.1:2222".parse().unwrap()),
+                            Destination::Address("127.1.1.2:2222".parse().unwrap()),
+                        ],
+                    }),
+                    Destination::Group(LoadBalanceGroup {
+                        strategy: LoadBalancingStrategy::RoundRobin(RoundRobin::new(3)),
+                        destinations: vec![
+                            Destination::Address("127.1.20.1:2222".parse().unwrap()),
+                            Destination::Address("127.1.20.2:2222".parse().unwrap()),
+                            Destination::Group(LoadBalanceGroup {
+                                strategy: LoadBalancingStrategy::Duplicate(Duplicate::new()),
+                                destinations: vec![
+                                    Destination::Address("127.1.30.1:2222".parse().unwrap()),
+                                    Destination::Address("127.1.30.2:2222".parse().unwrap()),
+                                ],
+                            }),
+                        ],
+                    }),
                 ],
             },
         ),
@@ -209,8 +245,8 @@ fn main() {
         .cloned()
         .collect();
 
-    /*
     println!("{:?}", dest_map);
+    /*
 
     let cfg = match dest_map.get(&333) {
         Some(lbm) => lbm,
