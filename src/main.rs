@@ -58,17 +58,15 @@ impl Strategy for Duplicate {
 
 #[derive(Clone, Debug)]
 struct RoundRobin {
-    size: usize,
     next_index: RefCell<usize>, // XXX tread-unsafety
 }
 
-// NOTE: storing the size in here is probably dumb, especially thinking about dynamic health checks
-// that might add or remove things from the pool.  It might be easier to just have the whole
-// LoadBalanceGroup.strategy field be mutable for callbacks to have their way with
+// NOTE: thinking about dynamic health checks that might add or remove things from the pool.  It
+// might be easier to just have the whole LoadBalanceGroup.strategy field be mutable for callbacks
+// to have their way with
 impl RoundRobin {
-    fn new(count: usize) -> RoundRobin {
+    fn new() -> RoundRobin {
         RoundRobin {
-            size: count,
             next_index: RefCell::new(0),
         }
     }
@@ -80,7 +78,8 @@ impl Strategy for RoundRobin {
 
         let mut ni = self.next_index.borrow_mut(); // panic
         *ni += 1;
-        if *ni >= self.size {
+        // len() should be cheap (basically a field lookup)
+        if *ni >= destinations.len() {
             *ni = 0
         }
 
@@ -186,7 +185,7 @@ fn main() {
                     Destination::Address("127.1.0.1:3333".parse().unwrap()),
                     Destination::Address("127.1.100.88:3333".parse().unwrap()),
                     Destination::Group(LoadBalanceGroup {
-                        strategy: LoadBalancingStrategy::RoundRobin(RoundRobin::new(2)),
+                        strategy: LoadBalancingStrategy::RoundRobin(RoundRobin::new()),
                         destinations: vec![
                             Destination::Address("127.1.1.1:2222".parse().unwrap()),
                             Destination::Address("127.1.1.2:2222".parse().unwrap()),
@@ -198,12 +197,12 @@ fn main() {
         (
             334,
             LoadBalanceGroup {
-                strategy: LoadBalancingStrategy::RoundRobin(RoundRobin::new(3)),
+                strategy: LoadBalancingStrategy::RoundRobin(RoundRobin::new()),
                 destinations: vec![
                     Destination::Address("127.1.0.1:3333".parse().unwrap()),
                     Destination::Address("127.1.100.88:3333".parse().unwrap()),
                     Destination::Group(LoadBalanceGroup {
-                        strategy: LoadBalancingStrategy::RoundRobin(RoundRobin::new(2)),
+                        strategy: LoadBalancingStrategy::RoundRobin(RoundRobin::new()),
                         destinations: vec![
                             Destination::Address("127.1.20.1:2222".parse().unwrap()),
                             Destination::Address("127.1.20.2:2222".parse().unwrap()),
@@ -218,14 +217,14 @@ fn main() {
                 strategy: LoadBalancingStrategy::Duplicate(Duplicate::new()),
                 destinations: vec![
                     Destination::Group(LoadBalanceGroup {
-                        strategy: LoadBalancingStrategy::RoundRobin(RoundRobin::new(2)),
+                        strategy: LoadBalancingStrategy::RoundRobin(RoundRobin::new()),
                         destinations: vec![
                             Destination::Address("127.1.1.1:2222".parse().unwrap()),
                             Destination::Address("127.1.1.2:2222".parse().unwrap()),
                         ],
                     }),
                     Destination::Group(LoadBalanceGroup {
-                        strategy: LoadBalancingStrategy::RoundRobin(RoundRobin::new(3)),
+                        strategy: LoadBalancingStrategy::RoundRobin(RoundRobin::new()),
                         destinations: vec![
                             Destination::Address("127.1.20.1:2222".parse().unwrap()),
                             Destination::Address("127.1.20.2:2222".parse().unwrap()),
