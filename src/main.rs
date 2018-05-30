@@ -39,11 +39,6 @@ enum LoadBalancingStrategy {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct Duplicate {}
-impl Duplicate {
-    fn new() -> Duplicate {
-        Duplicate {}
-    }
-}
 
 impl Strategy for Duplicate {
     fn next_destinations(&self, destinations: &Vec<Destination>) -> Vec<SocketAddrV4> {
@@ -70,6 +65,7 @@ struct RoundRobin {
 // might be easier to just have the whole LoadBalanceGroup.strategy field be mutable for callbacks
 // to have their way with
 impl RoundRobin {
+    #[allow(dead_code)]
     fn new() -> RoundRobin {
         RoundRobin {
             next_index: RefCell::new(0),
@@ -181,92 +177,9 @@ fn main() {
     //  TODO:
     //  * the source may need to expand to be able to consider the local address
     //    as well as the port, but it's simpler for now just to use the port
-    //{{{ giant destmap thing used to generate the yaml config
-    /*
-    let dest_map: DestMap = [
-        (
-            333,
-            LoadBalanceGroup {
-                strategy: LoadBalancingStrategy::Duplicate(Duplicate::new()),
-                destinations: vec![
-                    Destination::Address("127.1.0.1:3333".parse().unwrap()),
-                    Destination::Address("127.1.100.88:3333".parse().unwrap()),
-                    Destination::Group(LoadBalanceGroup {
-                        strategy: LoadBalancingStrategy::RoundRobin(RoundRobin::new()),
-                        destinations: vec![
-                            Destination::Address("127.1.1.1:2222".parse().unwrap()),
-                            Destination::Address("127.1.1.2:2222".parse().unwrap()),
-                        ],
-                    }),
-                ],
-            },
-        ),
-        (
-            334,
-            LoadBalanceGroup {
-                strategy: LoadBalancingStrategy::RoundRobin(RoundRobin::new()),
-                destinations: vec![
-                    Destination::Address("127.1.0.1:3333".parse().unwrap()),
-                    Destination::Address("127.1.100.88:3333".parse().unwrap()),
-                    Destination::Group(LoadBalanceGroup {
-                        strategy: LoadBalancingStrategy::RoundRobin(RoundRobin::new()),
-                        destinations: vec![
-                            Destination::Address("127.1.20.1:2222".parse().unwrap()),
-                            Destination::Address("127.1.20.2:2222".parse().unwrap()),
-                        ],
-                    }),
-                ],
-            },
-        ),
-        (
-            335,
-            LoadBalanceGroup {
-                strategy: LoadBalancingStrategy::Duplicate(Duplicate::new()),
-                destinations: vec![
-                    Destination::Group(LoadBalanceGroup {
-                        strategy: LoadBalancingStrategy::RoundRobin(RoundRobin::new()),
-                        destinations: vec![
-                            Destination::Address("127.1.1.1:2222".parse().unwrap()),
-                            Destination::Address("127.1.1.2:2222".parse().unwrap()),
-                        ],
-                    }),
-                    Destination::Group(LoadBalanceGroup {
-                        strategy: LoadBalancingStrategy::RoundRobin(RoundRobin::new()),
-                        destinations: vec![
-                            Destination::Address("127.1.20.1:2222".parse().unwrap()),
-                            Destination::Address("127.1.20.2:2222".parse().unwrap()),
-                            Destination::Group(LoadBalanceGroup {
-                                strategy: LoadBalancingStrategy::Duplicate(Duplicate::new()),
-                                destinations: vec![
-                                    Destination::Address("127.1.30.1:2222".parse().unwrap()),
-                                    Destination::Address("127.1.30.2:2222".parse().unwrap()),
-                                ],
-                            }),
-                        ],
-                    }),
-                ],
-            },
-        ),
-    ].iter()
-        .cloned()
-        .collect();
-    */
-    //}}}
-
     let config = File::open("config.yaml").expect("Couldn't open config file");
     let dest_map: DestMap = serde_yaml::from_reader(config).expect("Couldn't parse config file");
     println!("{:?}", dest_map);
-
-    /* {{{ old, dead, but potentially useful test code
-    let cfg = match dest_map.get(&333) {
-        Some(lbm) => lbm,
-        None => unimplemented!("boom"),
-    };
-    println!("{:?}", cfg.get_balance_result());
-    println!("{:?}", cfg.get_balance_result());
-    println!("{:?}", cfg.get_balance_result());
-    println!("{:?}", cfg.get_balance_result());
-    }}}*/
 
     // TODO: probably need to replicate this whole thing for ipv6 too
     let protocol = Layer3(IpNextHeaderProtocols::Udp);
