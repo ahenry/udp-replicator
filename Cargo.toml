@@ -5,3 +5,6 @@ authors = ["Austin Henry <ahenry-rust@twocanoe.ca>"]
 
 [dependencies]
 pnet = "*"
+serde = "*"
+serde_derive = "*"
+serde_yaml = "*"

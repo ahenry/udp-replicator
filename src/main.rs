@@ -1,19 +1,23 @@
 extern crate pnet;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_yaml;
 
-use pnet::packet::{MutablePacket, Packet};
-use pnet::packet::udp::{MutableUdpPacket, UdpPacket, ipv4_checksum};
+use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::ipv4;
 use pnet::packet::ipv4::{Ipv4Packet, MutableIpv4Packet};
 #[allow(unused_imports)]
 use pnet::packet::ipv6;
 #[allow(unused_imports)]
 use pnet::packet::ipv6::{Ipv6Packet, MutableIpv6Packet};
-use pnet::packet::ip::IpNextHeaderProtocols;
-use pnet::transport::{transport_channel, ipv4_packet_iter};
+use pnet::packet::udp::{ipv4_checksum, MutableUdpPacket, UdpPacket};
+use pnet::packet::{MutablePacket, Packet};
 use pnet::transport::TransportChannelType::Layer3;
+use pnet::transport::{ipv4_packet_iter, transport_channel};
 
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::fs::File;
 #[allow(unused_imports)]
 use std::net::{IpAddr, SocketAddr};
 use std::net::{Ipv4Addr, SocketAddrV4};
@@ -26,14 +30,14 @@ trait Strategy {
     fn next_destinations(&self, destinations: &Vec<Destination>) -> Vec<SocketAddrV4>;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 enum LoadBalancingStrategy {
     Duplicate(Duplicate),
     RoundRobin(RoundRobin),
     WeightedRoundRobin,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 struct Duplicate {}
 impl Duplicate {
     fn new() -> Duplicate {
@@ -56,9 +60,10 @@ impl Strategy for Duplicate {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 struct RoundRobin {
-    next_index: RefCell<usize>, // XXX tread-unsafety
+    #[serde(skip_serializing, default)]
+    next_index: RefCell<usize>, // XXX thread-unsafety
 }
 
 // NOTE: thinking about dynamic health checks that might add or remove things from the pool.  It
@@ -93,13 +98,13 @@ impl Strategy for RoundRobin {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 enum Destination {
     Address(SocketAddrV4),
     Group(LoadBalanceGroup),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 struct LoadBalanceGroup {
     strategy: LoadBalancingStrategy,
     destinations: Vec<Destination>,
@@ -176,6 +181,8 @@ fn main() {
     //  TODO:
     //  * the source may need to expand to be able to consider the local address
     //    as well as the port, but it's simpler for now just to use the port
+    //{{{ giant destmap thing used to generate the yaml config
+    /*
     let dest_map: DestMap = [
         (
             333,
@@ -243,10 +250,14 @@ fn main() {
     ].iter()
         .cloned()
         .collect();
+    */
+    //}}}
 
+    let config = File::open("config.yaml").expect("Couldn't open config file");
+    let dest_map: DestMap = serde_yaml::from_reader(config).expect("Couldn't parse config file");
     println!("{:?}", dest_map);
-    /*
 
+    /* {{{ old, dead, but potentially useful test code
     let cfg = match dest_map.get(&333) {
         Some(lbm) => lbm,
         None => unimplemented!("boom"),
@@ -255,7 +266,7 @@ fn main() {
     println!("{:?}", cfg.get_balance_result());
     println!("{:?}", cfg.get_balance_result());
     println!("{:?}", cfg.get_balance_result());
-    */
+    }}}*/
 
     // TODO: probably need to replicate this whole thing for ipv6 too
     let protocol = Layer3(IpNextHeaderProtocols::Udp);
@@ -283,3 +294,5 @@ fn main() {
         }
     }
 }
+
+// vim: set fdm=marker:
